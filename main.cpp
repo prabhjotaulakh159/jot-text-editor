@@ -2,9 +2,13 @@
 #define UNICODE
 #endif 
 
+#define JOT_TEXT_EDITOR_MENU_SAVE_ID 1000
+#define JOT_TEXT_EDITOR_MENU_OPEN_ID 1001
+
 #include <windows.h>
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+HMENU JotTextEditorCreateMenu();
 
 // Signature different from docs since I'm using MinGW compiler
 // https://www.transmissionzero.co.uk/computing/win32-apps-with-mingw/
@@ -43,7 +47,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-  switch(uMsg) {
+  switch(uMsg) { 
+    case WM_CREATE: {
+      SetMenu(hwnd, JotTextEditorCreateMenu());
+      return 0;
+    }
+
     case WM_DESTROY: {
       PostQuitMessage(0);
       return 0;
@@ -59,4 +68,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
   }
 
   return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createmenu
+// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setmenu
+HMENU JotTextEditorCreateMenu() {
+  HMENU menu = CreateMenu();
+  AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_SAVE_ID, L"Save");
+  AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_OPEN_ID, L"Open");
+  return menu;
 }
