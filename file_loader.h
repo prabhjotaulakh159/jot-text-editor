@@ -4,10 +4,10 @@
 namespace JotTextEditor {
   class FileLoader {
     private:
-      std::vector<std::string> lines;
+      std::vector<std::wstring> lines;
     
     public:
-      std::vector<std::string>& getLines();
-      bool readFileIntoLines(const std::string& filename);
+      std::vector<std::wstring>& getLines();
+      bool readFileIntoLines(const std::wstring& filename);
   };
 };

@@ -1,3 +1,1 @@
-This is a test file for now, nothing fancy.
-I am a seperate line.
-Hello world.
+Welcome to Jot editor! Try to open a file!
