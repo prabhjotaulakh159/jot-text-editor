@@ -6,6 +6,8 @@
 #define JOT_TEXT_EDITOR_MENU_OPEN_ID 1001
 
 #include <windows.h>
+#include "file_loader.h"
+#include <iostream>
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 HMENU JotTextEditorCreateMenu();
@@ -47,9 +49,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+  static JotTextEditor::FileLoader fileLoader;
+  
   switch(uMsg) { 
     case WM_CREATE: {
-      SetMenu(hwnd, JotTextEditorCreateMenu());
+      // testing for now
+      if (!fileLoader.readFileIntoLines("test.txt")) {
+        std::cout << "fail" << std::endl;
+      }
+      else {
+        std::cout << "good";
+        std::cout << fileLoader.getLines().size();
+      }
+      for(std::string line: fileLoader.getLines()) {
+        std::cout << line << std::endl;
+      }
+
+      HMENU menu = CreateMenu();
+      AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_SAVE_ID, L"Save");
+      AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_OPEN_ID, L"Open");
+      SetMenu(hwnd, menu);
       return 0;
     }
 
@@ -68,13 +87,4 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
   }
 
   return DefWindowProc(hwnd, uMsg, wParam, lParam);
-}
-
-// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createmenu
-// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setmenu
-HMENU JotTextEditorCreateMenu() {
-  HMENU menu = CreateMenu();
-  AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_SAVE_ID, L"Save");
-  AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_OPEN_ID, L"Open");
-  return menu;
 }
