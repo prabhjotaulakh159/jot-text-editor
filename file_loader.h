@@ -1,7 +1,7 @@
 #include <vector>
 #include <string>
 
-namespace JotTextEditor {
+namespace JotTextEditor_UI {
   class FileLoader {
     private:
       std::vector<std::wstring> lines;

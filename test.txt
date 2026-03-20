@@ -1,1 +1,2 @@
-Welcome to Jot editor! Try to open a file!
+I am a test subject :0
+Hello World
