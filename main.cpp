@@ -22,7 +22,7 @@
 #include <iostream>
 #include <commdlg.h>
 
-namespace JotTextEditor_UI {
+namespace JotTextEditor_IO {
   HMENU SetupBasicMenu() {
     HMENU menu = CreateMenu();
     AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_OPEN_ID, L"Open");
@@ -115,16 +115,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-  static JotTextEditor_UI::FileLoader fileLoader;
+  static JotTextEditor_IO::FileLoader fileLoader;
   static HWND editArea;
   static HMENU menu;
 
   switch(uMsg) { 
     case WM_CREATE: {
-      menu = JotTextEditor_UI::SetupBasicMenu();
-      editArea = JotTextEditor_UI::SetupInputArea(hwnd);
-      SetMenu(hwnd, JotTextEditor_UI::SetupBasicMenu());
-      JotTextEditor_UI::ShowWelcomeMessage(editArea);
+      menu = JotTextEditor_IO::SetupBasicMenu();
+      editArea = JotTextEditor_IO::SetupInputArea(hwnd);
+      SetMenu(hwnd, JotTextEditor_IO::SetupBasicMenu());
+      JotTextEditor_IO::ShowWelcomeMessage(editArea);
       return 0;
     }
 
@@ -141,9 +141,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     case WM_COMMAND: {
       if (LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_OPEN_ID) {
         std::wstring filename;
-        if (JotTextEditor_UI::GetFileFromFileChooser(hwnd, filename)) {
+        if (JotTextEditor_IO::GetFileFromFileChooser(hwnd, filename)) {
           fileLoader.readFileIntoLines(filename);
-          JotTextEditor_UI::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
+          JotTextEditor_IO::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
         } 
       }
       return 0;
