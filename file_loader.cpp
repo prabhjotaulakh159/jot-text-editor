@@ -16,3 +16,10 @@ bool JotTextEditor_IO::FileLoader::readFileIntoLines(const std::wstring &filenam
   }
   return true;
 }
+
+bool JotTextEditor_IO::FileLoader::dumpContentIntoFile(const std::wstring &content, const std::wstring &filename) {
+  std::wofstream file(filename.c_str());
+  if (!file) return false;
+  file << content;
+  return true;
+}

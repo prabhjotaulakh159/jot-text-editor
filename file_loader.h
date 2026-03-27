@@ -9,5 +9,6 @@ namespace JotTextEditor_IO {
     public:
       std::vector<std::wstring>& getLines();
       bool readFileIntoLines(const std::wstring& filename);
+      bool dumpContentIntoFile(const std::wstring& content, const std::wstring& filename);
   };
 };

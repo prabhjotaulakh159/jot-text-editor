@@ -118,6 +118,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
   static JotTextEditor_IO::FileLoader fileLoader;
   static HWND editArea;
   static HMENU menu;
+  static std::wstring filename;
 
   switch(uMsg) { 
     case WM_CREATE: {
@@ -140,11 +141,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
     case WM_COMMAND: {
       if (LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_OPEN_ID) {
-        std::wstring filename;
         if (JotTextEditor_UI::GetFileFromFileChooser(hwnd, filename)) {
           fileLoader.readFileIntoLines(filename);
           JotTextEditor_UI::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
         } 
+      } else if (LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_SAVE_ID) {
+        int len = GetWindowTextLength(editArea);
+        std::wstring text(len + 1, L'\0');
+        GetWindowText(editArea, &text[0], len + 1);
+        text.resize(wcslen(text.c_str()));
+        std::wcout << text;
+        fileLoader.dumpContentIntoFile(text, filename);
       }
       return 0;
     }
