@@ -6,6 +6,7 @@
  * MinGW win32 setup: https://www.transmissionzero.co.uk/computing/win32-apps-with-mingw/
  * Mouse click detection: https://stackoverflow.com/questions/2522029/how-to-handle-click-event-in-win32-api
  * Opening dialog boxes: https://iq.direct/blog/57-displaying-open-file-dialog-using-winapi.html
+ * Message box: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messagebox
  */
 
 #ifndef UNICODE
@@ -14,7 +15,7 @@
 
 #define JOT_TEXT_EDITOR_MENU_OPEN_ID 1000
 #define JOT_TEXT_EDITOR_MENU_SAVE_ID 1001
-#define JOT_TEXT_EDITOR_MENU_SAVE_AS_ID 1002
+#define JOT_TEXT_EDITOR_MENU_EXIT_ID 1002
 
 #define JOT_TEXT_EDITOR_EDIT_WINDOW_ID 2000
 
@@ -28,7 +29,7 @@ namespace JotTextEditor_UI {
     HMENU menu = CreateMenu();
     AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_OPEN_ID, L"Open");
     AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_SAVE_ID, L"Save");
-    AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_SAVE_AS_ID, L"Save as");
+    AppendMenu(menu, MF_STRING, JOT_TEXT_EDITOR_MENU_EXIT_ID, L"Exit");
     return menu;
   } 
 
@@ -75,7 +76,7 @@ namespace JotTextEditor_UI {
       return true;
     }
 
-    if (action == JOT_TEXT_EDITOR_MENU_SAVE_AS_ID && GetSaveFileName(&ofn) == TRUE) {
+    if (action == JOT_TEXT_EDITOR_MENU_SAVE_ID && GetSaveFileName(&ofn) == TRUE) {
       out = szFile;
       return true;
     }
@@ -83,7 +84,7 @@ namespace JotTextEditor_UI {
     return false;
   }
 
-  void saveFile(const HWND& editArea, const std::wstring& filename, JotTextEditor_IO::FileLoader& fileLoader) {
+  void SaveFile(const HWND& editArea, const std::wstring& filename, JotTextEditor_IO::FileLoader& fileLoader) {
     int len = GetWindowTextLength(editArea);
     std::wstring text(len + 1, L'\0');
     GetWindowText(editArea, &text[0], len + 1);
@@ -91,9 +92,13 @@ namespace JotTextEditor_UI {
     fileLoader.dumpContentIntoFile(text, filename);
   }
 
+  bool UserWantsToSaveBeforeQuitting(const HWND& hwnd) {
+    return MessageBox(hwnd, L"Do you wish to save your changes", L"Exit", MB_OKCANCEL) == IDOK;
+  }
+
   bool UserChoosesOpen(WPARAM wParam) { return LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_OPEN_ID; }
   bool UserChoosesSave(WPARAM wParam) { return LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_SAVE_ID; }
-  bool UserChoosesSaveAs(WPARAM wParam) { return LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_SAVE_AS_ID; }
+  bool UserChoosesExit(WPARAM wParam) { return LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_EXIT_ID; }
 
 };
 
@@ -165,12 +170,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         JotTextEditor_UI::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
       } 
       else if (JotTextEditor_UI::UserChoosesSave(wParam)) {
-        JotTextEditor_UI::saveFile(editArea, filename, fileLoader);
+        JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_ID);
+        JotTextEditor_UI::SaveFile(editArea, filename, fileLoader);
       } 
-      else if (JotTextEditor_UI::UserChoosesSaveAs(wParam)) {
-        JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_AS_ID);
-        JotTextEditor_UI::saveFile(editArea, filename, fileLoader);
+      else if (JotTextEditor_UI::UserChoosesExit(wParam)) {
+        if (JotTextEditor_UI::UserWantsToSaveBeforeQuitting(hwnd)) {
+          JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_ID);
+          JotTextEditor_UI::SaveFile(editArea, filename, fileLoader);
+        }
+        DestroyWindow(hwnd);
       }
+      return 0;
+    }
+
+    case WM_CLOSE: {
       return 0;
     }
 
