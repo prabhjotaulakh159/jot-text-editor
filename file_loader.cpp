@@ -18,7 +18,7 @@ bool JotTextEditor_IO::FileLoader::readFileIntoLines(const std::wstring &filenam
 }
 
 bool JotTextEditor_IO::FileLoader::dumpContentIntoFile(const std::wstring &content, const std::wstring &filename) {
-  std::wofstream file(filename.c_str());
+  std::wofstream file(filename.c_str(), std::ios::binary);
   if (!file) return false;
   file << content;
   return true;

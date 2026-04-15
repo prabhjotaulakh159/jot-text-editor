@@ -7,6 +7,7 @@
  * Mouse click detection: https://stackoverflow.com/questions/2522029/how-to-handle-click-event-in-win32-api
  * Opening dialog boxes: https://iq.direct/blog/57-displaying-open-file-dialog-using-winapi.html
  * Message box: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messagebox
+ * App state: https://learn.microsoft.com/en-us/windows/win32/learnwin32/managing-application-state-
  */
 
 #ifndef UNICODE
@@ -23,6 +24,8 @@
 #include "file_loader.h"
 #include <iostream>
 #include <commdlg.h>
+#include "app_state.h"
+#include <optional>
 
 namespace JotTextEditor_UI {
   HMENU SetupBasicMenu() {
@@ -54,11 +57,16 @@ namespace JotTextEditor_UI {
     SendMessage(editArea, WM_SETTEXT, 0, (LPARAM) content.c_str());
   }
 
-  bool AccessFileExplorer(const HWND& parent, std::wstring& out, int action) {
+  std::optional<std::wstring> AccessFileExplorer(const HWND& parent, std::wstring& initialFilename, int action) {
     std::wstring filename;
 
     OPENFILENAME ofn = {0}; 
     TCHAR szFile[MAX_PATH]={0};
+
+    if (!initialFilename.empty()) {
+      wcsncpy(szFile, initialFilename.c_str(), MAX_PATH - 1);
+      szFile[MAX_PATH - 1] = L'\0';
+    }
     
     ofn.lStructSize = sizeof(ofn); 
     ofn.hwndOwner = parent; 
@@ -72,16 +80,14 @@ namespace JotTextEditor_UI {
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
     if (action == JOT_TEXT_EDITOR_MENU_OPEN_ID && GetOpenFileName(&ofn) == TRUE) {
-      out = szFile;
-      return true;
+      return std::wstring(szFile);
     }
 
     if (action == JOT_TEXT_EDITOR_MENU_SAVE_ID && GetSaveFileName(&ofn) == TRUE) {
-      out = szFile;
-      return true;
+      return std::wstring(szFile);
     }
 
-    return false;
+    return std::nullopt;
   }
 
   void SaveFile(const HWND& editArea, const std::wstring& filename, JotTextEditor_IO::FileLoader& fileLoader) {
@@ -114,6 +120,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   windowClass.lpszClassName = CLASS_NAME;
   RegisterClass(&windowClass);
 
+  JotTextEditor_State::AppState *appState = new (std::nothrow) JotTextEditor_State::AppState;
+
   UINT8 NO_STYLES = 0;
   HWND window = CreateWindowEx(
     NO_STYLES, 
@@ -124,7 +132,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     NULL, 
     NULL, 
     hInstance, 
-    NULL
+    appState
   ); 
 
   ShowWindow(window, nCmdShow);
@@ -140,12 +148,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
   static JotTextEditor_IO::FileLoader fileLoader;
+  static JotTextEditor_State::AppState *appState;
   static HWND editArea;
   static HMENU menu;
-  static std::wstring filename;
 
   switch(uMsg) { 
     case WM_CREATE: {
+      CREATESTRUCT *pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
+      appState = reinterpret_cast<JotTextEditor_State::AppState*>(pCreate->lpCreateParams);
+      SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)appState);
+
       menu = JotTextEditor_UI::SetupBasicMenu();
       editArea = JotTextEditor_UI::SetupInputArea(hwnd);
       SetMenu(hwnd, menu);
@@ -164,22 +176,29 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     }
 
     case WM_COMMAND: {
+      JotTextEditor_State::AppState* state = JotTextEditor_State::GetAppState(hwnd);
       if (JotTextEditor_UI::UserChoosesOpen(wParam)) {
-        bool aFileWasChosen = false;
-        aFileWasChosen = JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_OPEN_ID);
-        if (aFileWasChosen) { 
-          fileLoader.readFileIntoLines(filename); 
+        std::optional<std::wstring> newCurrentFile = JotTextEditor_UI::AccessFileExplorer(hwnd, state->currentFile, JOT_TEXT_EDITOR_MENU_OPEN_ID);
+        if (newCurrentFile) {
+          state->currentFile = newCurrentFile.value(); 
+          fileLoader.readFileIntoLines(state->currentFile); 
           JotTextEditor_UI::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
         }
       } 
       else if (JotTextEditor_UI::UserChoosesSave(wParam)) {
-        JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_ID);
-        JotTextEditor_UI::SaveFile(editArea, filename, fileLoader);
+        std::optional<std::wstring> newCurrentFile = JotTextEditor_UI::AccessFileExplorer(hwnd, state->currentFile, JOT_TEXT_EDITOR_MENU_SAVE_ID);
+        if (newCurrentFile) {
+          state->currentFile = newCurrentFile.value(); 
+          JotTextEditor_UI::SaveFile(editArea, state->currentFile, fileLoader);
+        }
       } 
       else if (JotTextEditor_UI::UserChoosesExit(wParam)) {
         if (JotTextEditor_UI::UserWantsToSaveBeforeQuitting(hwnd)) {
-          JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_ID);
-          JotTextEditor_UI::SaveFile(editArea, filename, fileLoader);
+          std::optional<std::wstring> newCurrentFile = JotTextEditor_UI::AccessFileExplorer(hwnd, state->currentFile, JOT_TEXT_EDITOR_MENU_SAVE_ID);
+          if (newCurrentFile) {
+            state->currentFile = newCurrentFile.value(); 
+            JotTextEditor_UI::SaveFile(editArea, state->currentFile, fileLoader);
+          }
         }
         DestroyWindow(hwnd);
       }
@@ -187,9 +206,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     }
 
     case WM_CLOSE: {
+      JotTextEditor_State::AppState* state = JotTextEditor_State::GetAppState(hwnd);
       if (JotTextEditor_UI::UserWantsToSaveBeforeQuitting(hwnd)) {
-        JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_ID);
-        JotTextEditor_UI::SaveFile(editArea, filename, fileLoader);
+        std::optional<std::wstring> newCurrentFile = JotTextEditor_UI::AccessFileExplorer(hwnd, state->currentFile, JOT_TEXT_EDITOR_MENU_SAVE_ID);
+        if (newCurrentFile) {
+          state->currentFile = newCurrentFile.value();
+          JotTextEditor_UI::SaveFile(editArea, state->currentFile, fileLoader);
+        }
       }
       DestroyWindow(hwnd);
       return 0;
