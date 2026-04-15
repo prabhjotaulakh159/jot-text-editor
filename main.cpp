@@ -148,7 +148,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     case WM_CREATE: {
       menu = JotTextEditor_UI::SetupBasicMenu();
       editArea = JotTextEditor_UI::SetupInputArea(hwnd);
-      SetMenu(hwnd, JotTextEditor_UI::SetupBasicMenu());
+      SetMenu(hwnd, menu);
       JotTextEditor_UI::ShowWelcomeMessage(editArea);
       return 0;
     }
@@ -165,9 +165,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
     case WM_COMMAND: {
       if (JotTextEditor_UI::UserChoosesOpen(wParam)) {
-        JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_OPEN_ID);
-        fileLoader.readFileIntoLines(filename);
-        JotTextEditor_UI::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
+        bool aFileWasChosen = false;
+        aFileWasChosen = JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_OPEN_ID);
+        if (aFileWasChosen) { 
+          fileLoader.readFileIntoLines(filename); 
+          JotTextEditor_UI::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
+        }
       } 
       else if (JotTextEditor_UI::UserChoosesSave(wParam)) {
         JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_ID);
@@ -184,6 +187,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     }
 
     case WM_CLOSE: {
+      if (JotTextEditor_UI::UserWantsToSaveBeforeQuitting(hwnd)) {
+        JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_ID);
+        JotTextEditor_UI::SaveFile(editArea, filename, fileLoader);
+      }
+      DestroyWindow(hwnd);
       return 0;
     }
 
