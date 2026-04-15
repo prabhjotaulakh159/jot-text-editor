@@ -53,7 +53,7 @@ namespace JotTextEditor_UI {
     SendMessage(editArea, WM_SETTEXT, 0, (LPARAM) content.c_str());
   }
 
-  bool GetFileFromFileChooser(const HWND& parent, std::wstring& out, int action) {
+  bool AccessFileExplorer(const HWND& parent, std::wstring& out, int action) {
     std::wstring filename;
 
     OPENFILENAME ofn = {0}; 
@@ -70,21 +70,31 @@ namespace JotTextEditor_UI {
     ofn.lpstrInitialDir = NULL;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-    if (action == JOT_TEXT_EDITOR_MENU_OPEN_ID) {
-      if(GetOpenFileName(&ofn) == TRUE) { 
-        out = szFile;
-        return true;
-      }
-      return false;
+    if (action == JOT_TEXT_EDITOR_MENU_OPEN_ID && GetOpenFileName(&ofn) == TRUE) {
+      out = szFile;
+      return true;
     }
 
-    if (GetSaveFileName(&ofn) == TRUE) { // todo: remove repetition
+    if (action == JOT_TEXT_EDITOR_MENU_SAVE_AS_ID && GetSaveFileName(&ofn) == TRUE) {
       out = szFile;
       return true;
     }
 
     return false;
   }
+
+  void saveFile(const HWND& editArea, const std::wstring& filename, JotTextEditor_IO::FileLoader& fileLoader) {
+    int len = GetWindowTextLength(editArea);
+    std::wstring text(len + 1, L'\0');
+    GetWindowText(editArea, &text[0], len + 1);
+    text.resize(wcslen(text.c_str()));
+    fileLoader.dumpContentIntoFile(text, filename);
+  }
+
+  bool UserChoosesOpen(WPARAM wParam) { return LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_OPEN_ID; }
+  bool UserChoosesSave(WPARAM wParam) { return LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_SAVE_ID; }
+  bool UserChoosesSaveAs(WPARAM wParam) { return LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_SAVE_AS_ID; }
+
 };
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -149,24 +159,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     }
 
     case WM_COMMAND: {
-      if (LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_OPEN_ID) {
-        if (JotTextEditor_UI::GetFileFromFileChooser(hwnd, filename, JOT_TEXT_EDITOR_MENU_OPEN_ID)) {
-          fileLoader.readFileIntoLines(filename);
-          JotTextEditor_UI::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
-        } 
-      } else if (LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_SAVE_ID) {
-        int len = GetWindowTextLength(editArea);
-        std::wstring text(len + 1, L'\0');
-        GetWindowText(editArea, &text[0], len + 1);
-        text.resize(wcslen(text.c_str()));
-        fileLoader.dumpContentIntoFile(text, filename); // TODO: Extract info func
-      } else if (LOWORD(wParam) == JOT_TEXT_EDITOR_MENU_SAVE_AS_ID) {
-        JotTextEditor_UI::GetFileFromFileChooser(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_AS_ID);
-        int len = GetWindowTextLength(editArea);
-        std::wstring text(len + 1, L'\0');
-        GetWindowText(editArea, &text[0], len + 1);
-        text.resize(wcslen(text.c_str()));
-        fileLoader.dumpContentIntoFile(text, filename); // todo: remove repetition
+      if (JotTextEditor_UI::UserChoosesOpen(wParam)) {
+        JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_OPEN_ID);
+        fileLoader.readFileIntoLines(filename);
+        JotTextEditor_UI::OutputFileContentOnEditArea(editArea, fileLoader.getLines());
+      } 
+      else if (JotTextEditor_UI::UserChoosesSave(wParam)) {
+        JotTextEditor_UI::saveFile(editArea, filename, fileLoader);
+      } 
+      else if (JotTextEditor_UI::UserChoosesSaveAs(wParam)) {
+        JotTextEditor_UI::AccessFileExplorer(hwnd, filename, JOT_TEXT_EDITOR_MENU_SAVE_AS_ID);
+        JotTextEditor_UI::saveFile(editArea, filename, fileLoader);
       }
       return 0;
     }
